@@ -8,4 +8,4 @@ They do not include material for chapters 1 and 2. [This link](https://w3.cs.jmu
 ## Contribution
 There's almost certianly mistakes in this, and I'm happy to make any corrections that come up. If you want to add sections, just make sure that they are terse and avoid too many acronyms because that makes for unreadable reference material. 
 
-You can alternatively fork this repo and do whatever you want. I require no attributiuon. 
+You can alternatively fork this repo and do whatever you want. I require no attributiuon, but you should check with Margo and Don. 
