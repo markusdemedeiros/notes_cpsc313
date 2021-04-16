@@ -1,0 +1,314 @@
+\documentclass[12pt]{article}
+
+
+% DR. ZAHL BASED FORMAT
+% REQUIRES: LINK TO stylesheet.sty
+%           LINK TO custom_macros.sty
+\usepackage{stylesheet}
+\usepackage{custom_macros}
+\def\labelitemi{--}
+
+\newcommand{\course}{CPSC 313}
+\newcommand{\assign}{Course Review Notes}
+\setcounter{section}{2}
+
+\begin{document}
+\fancyhf{} 
+
+\rhead{\course}
+\lhead{Markus de Medeiros}
+
+\begin{center} 
+	{\bf{\course \hspace{5pt} \assign}} \\ 
+	\smallskip
+	{\bf{\today}}
+\end{center}  
+\hrule
+\bigskip
+
+\section{Memory and Cacheing}
+\subsection{The Memory Hierarchy}
+\begin{itemize}
+	\item Memory is arranged hierarchically. An example memory hierarchy might be
+		\begin{equation*}
+			\textrm{Registers} < \textrm{L1 \ldots L4 Caches} < \textrm{Main Memory} < \textrm{Flash drives} < \textrm{Disk drives} < \textrm{Network}
+		\end{equation*}
+	\item Moving down a well designed memory hierarchy, the following should be observed:
+		\begin{itemize}
+			\item Latency increases/speed decreases
+			\item Size increases
+			\item Price per unit of storage decreases
+		\end{itemize}
+\end{itemize}
+
+\subsection{Caching}
+\begin{itemize}
+	\item \textit{Def}: Temporarily moving data up the hierarchy to reduce latency
+	\item Obeying the memory hierarchy, caches will be smaller than their data source so must sometimes \textit{miss}:
+		\begin{itemize}
+			\item \textit{Compulsory Miss}: Accessing an item for the first time which is not in the cache
+			\item \textit{Capacity Miss}: Accessing an item which does not fit into the cache
+			\item \textit{Conflict Miss}: Accessing an item whose spot in the cache is taken
+		\end{itemize}
+	\item Caches are predicated on \textit{spatial} and \textit{temporal locality}, the principle that data is generally accessed near each other in space and in time. 
+	\item The \textit{line size} of a cache is the minimum unit of data stored in a cache. Caches on disks are generally 4KB, which is the \textit{block size} of most disks. 
+	\item Direct mapped caches hash address to cachelines by splitting addresses as \textit{Tag/Index/Offset}. 
+		\begin{itemize}
+			\item The offset bits index into a cache line, namely there are $\log(\textrm{line size})$ bits.
+			\item The index bits index cache lines. The size of a cache with $i$ index bits and $o$ offset bits is $2^{i+o}$ bytes. 
+		\end{itemize}
+	\item A direct mapped cache is a $1$-way set associative cache, because each \textit{cache set} (the set of positions in the cache a cacheline can occupy) is exactly one cache line. In general, for a $2^{n}$ way set associative cache move $n$ bits from the index to the tag. \\
+\end{itemize}
+\newpage
+\subsection{Cache Eviction Policies}
+\begin{itemize}
+	\item \textit{Belady's Algorithm}: Evict the item used farthest in the future. This is impossible to do in practice, but is optimal. For any other algorithm, we can construct an adversarial access pattern. 
+	\item \textit{LRU (Least Recently Used)}: Evict the item used furthest in the past. An adversarial access pattern for a size $n$ fully associative LRU cache is
+		\begin{equation*}
+			1,2,\cdots,n,n+1,1,2,\cdots
+		\end{equation*}
+		which is fixed by MRU.
+	\item \textit{LFU (Least Frequently Used)}: Track uses of each tag, evict item with the fewest. 
+	\item \textit{MRU (Most Frequently Used)}: Evict most recently used item. 
+	\item \textit{FIFO (First In, First Out)}: Evict item loaded earliest into the cache (queue).
+	\item \textit{LIFO (Last In, First Out)}: Evict item loaded last into the cache (stack). 
+\end{itemize}
+\subsection{Amdahl's Law}
+\begin{itemize}
+	\item If a program spends the portion $\alpha$ of it's time in a task which is sped up by a factor of $k$, the total speedup to the system is
+		\begin{equation*}
+			\frac{1}{(1-\alpha) + \frac{\alpha}{k}}
+		\end{equation*}
+		and if the old runtime (often called latency) is $T$, the new runtime will be $T((1-\alpha) + \frac{\alpha}{k})$.
+\end{itemize}
+\subsection{Cache Write Policies}
+\begin{itemize}
+	\item On a hit, caches are \textit{writeback} or \textit{writethrough}.
+		\begin{itemize}
+			\item Writeback caches keep dirty data in the cache, and write on eviction (or when requested). This is faster, and can avoid unnecessary writes. 
+			\item Writethrough caches write all dirty data back to disk immediately. This can make synchronization easier. 
+		\end{itemize}
+	\item On a miss, caches are \textit{write allocate} or \textit{no write allocate}.
+		\begin{itemize}
+			\item Write allocate caches allocate address they are attempting to write to in the cache (bringing the rest of the cacheline into cache from the disk). This is fast especially with many localized writes. 
+			\item No write allocate caches just pass write misses along to the disk. This avoids filling the cache with write data. 
+		\end{itemize}
+		\newpage
+	\item While the above policies are orthogonal, we generally only use writethrough/no write allocate and writeback/write allocate caches. 
+	\item Low in the memory hierarchy, we generally use writeback/write allocate. 
+\end{itemize}
+
+\subsection{Strided Access}
+\begin{itemize}
+	\item Increasing the stride of an access pattern can force misses on upper level caches, and give us information about the size and latencies of a memory hierarchy. 
+	\item The standard graph is as follows: size on the $x$ axis, time on the $y$ axis, and several lines plotting the total access time for a size $x$ array with a given stride. 
+		\begin{itemize}
+			\item The graphs will be piecewise constant. The value at which it is constant is the latency of a member of the memory hierarchy, and the $x$ value where the graph jumps to member $M$'s latency is the total size of member $M-1$. 
+		\end{itemize}
+	\item C arrays are \textit{row major}, that is rows of arrays are contiguous in memory. Like arrays in mathematics, 2D arrays in C are indexed first by row, then by column (so in memory it looks like $A_{0,0}, A_{0,1}, A_{0,2}, \cdots$).
+\end{itemize}
+\subsection{Multicore Caches}
+\begin{itemize}
+	\item Two solutions are snoopy caches, and directory based coherence. We will use the former, that is there is some bus between caches which allow cores to send messages between each other. 
+	\item \textit{MSI} protocol: each cacheline can be in the state \textit{(m)odified}, \textit{(s)hared}, and \textit{(i)nvalid}. Data which is just read is shared. Writing data to a cacheline puts it into the modified state, and invalidates shared data in other cores (this data cannot be dirty). If another core attempts to read or write data which this core has in the modified state, this core must writeback and invalidate. 
+	\item \textit{MESI} protocol: more efficient when only one core has data. This protocol introduces the \textit{(e)xclusive} state, which is for clean data cached only by one core. 
+\end{itemize}
+
+\newpage
+\section{Filesystems}
+\subsection{FS API and Syscalls}
+\begin{itemize}
+	\item \textit{System calls} are a method whereby unprivileged processes can request the operating system to perform potentially harmful actions on their behalf. See page 2 of the manpages. 
+	\item Filesystem syscalls in \texttt{libc} (a thin library which performs the syscalls)
+		\begin{itemize}
+			\item \texttt{open}: Takes path, returns file descriptor (integer). Takes oflags (read/write, create, append, exclusive, disable caching) and a mode for file creation. 
+			\item \texttt{close}: Take file descriptor and deallocates everything associated to it. Returns 0 on success, $-1$ on error.  
+			\item \texttt{read}/\texttt{write}: Reads/writes files to or from a buffer. Returns \texttt{ssize\_t} (signed \texttt{long}) of bytes read or written, 0 on eof and $-1$ on error. 
+		\end{itemize}
+\end{itemize}
+
+\subsection{Disks} 
+\begin{itemize}
+	\item Disks are a collection of spinning platters, which store magnetic data on both sides.
+	\item Platters are organized into tracks. Tracks are divided into sectors (equiv. blocks), which used to be 512B and are now at least 4KB.
+	\item Data is contiguous if laid out on the same cylinder (not the same platter). 
+	\item Disk access time is measured in a couple parts:
+		\begin{itemize}
+			\item Seek time: Time for disk arm to move to correct cylinder
+			\item Rotation time: Time for head to get to correct block in the track. Data laid out over an entire track does not pay this. Average rotation time is half maximum rotation time. 
+			\item Transfer time: Time once data starts reading.
+		\end{itemize}
+\end{itemize}
+
+
+\subsection{File Descriptors}
+\begin{itemize}
+	\item Every process has some common data structures
+		\begin{itemize}
+			\item File descriptors for stdin, stout, and stderr (0,1,2 respectively).
+			\item A \textit{file descriptor table}, containing pointers from file descriptors to an open file table entry.
+		\end{itemize}
+	\item The \textit{open file table} has an entry for every unique call to \texttt{open}, containing file position, reference count, and reference to a vnode table entry. 
+		\newpage
+	\item It is possible to get a reference count greater than zero by i. forking a process with an open file, or ii. using the \texttt{dup} or \texttt{dup2} syscalls. The latter helps support pipes:
+		\begin{itemize}
+			\item Redirection \texttt{>} can be done by opening a file descriptor \texttt{fd} (with wronly, create, trunc), and calling \texttt{dup2(fd, STDOUT\_FILNO)}. This also closes the old stdout. 
+			\item The way the shell implements redirection using fork: in the child it performs the \texttt{dup2} redirection and \texttt{execv} of the command. This way the parent still has the normal stdout. 
+		\end{itemize}
+	\item A \textit{vnode} is an in-memory representation of a file, which has a copy of file metadata and a way of locating actual disk blocks. 
+	\item The file system implementation is motivated by file descriptor management:
+		\begin{itemize}
+			\item \texttt{open} needs a persistent mapping between file names and physical file metadata. 
+			\item \texttt{open}, \texttt{close}, \texttt{read} and \texttt{write} all need to manage the file descriptor table. 
+			\item \texttt{read} and \texttt{write} will need to follow the file descriptor table to an open file table entry and then a vnode, and also need a map between file offsets and disk blocks. 
+			\item We call the mapping of file names to metadata and file offsets to blocks an \textit{inode} and is stored on disk and in memory. 
+		\end{itemize}
+\end{itemize}
+
+\subsection{File System Implementation}
+\begin{itemize}
+	\item On disk metadata is stored in an \textit{inode}.
+	\item A filesystem has \textit{internal fragmentation} when it only uses part of a block.
+	\item A filesystem has \textit{external fragmentation} when small pieces of contiguous memory are unused. 
+	\item There are several methods of allocating space for files to address these issues
+		\begin{itemize}
+			\item \textit{Single Extent}: Metadata points directly to one allocation unit. It is inflexible, and leads to external fragmentation. 
+			\item \textit{Fixed Size Blocks}: Metadata points to a list of blocks. Flexible and minimizes both fragmentations but uses large amount of metadata. 
+		\end{itemize}
+		We use fixed size blocks because it handles sparse files far better, and is better matched to the POISX paradigm of files as streams of size that is not fixed. There are several strategies:
+		\begin{itemize}
+			\item \textit{Flat index}: Inode points to fixed size index, index points to disk blocks. Can represent sparse files, but also wastes space for small files. 
+				\newpage
+			\item \textit{Multi-level index}: Inode points to tree of indirect blocks (blocks of disk addresses). Has the advantage of not wasting many disk blocks for small files, through has a minimum of several IO's per block access. 
+			\item \textit{Hybrid index}: Inode points to several trees of various depths. Allows fast access to small files, and the potential for large files as well. Filesystems generally use this. 
+		\end{itemize}
+	\item Filesystem wide metadata is can be accessed by \texttt{statfs} and \texttt{fstatfs}, giving a \texttt{struct statfs} (see \texttt{man statfs}). It is stored on disk in the \textit{superblock}, typically the first block, and the exact information varies by filesystem. 
+	\item Individual file metadata is accessed via \texttt{stat} and \texttt{fstat} giving a \texttt{struct stat} (see \texttt{man stat}). It includes the inode number. 
+	\item Directories are files, and can be accessed by library calls \texttt{opendir} and \texttt{readdir}. See \texttt{man readdir} for information about the \texttt{struct dirent} structure. It includes inode numbers, dirent size, dirent type, namelen, and name. We round record length up to 4 byte boundaries. 
+	\item Information about traversing directories:
+		\begin{itemize}
+			\item In most POISX systems, the root inode always has number 2. 
+			\item Some blocks contain metadata (indodes) and others contain data (dirents or files)
+			\item Example: Read the block containing indode 2, indode 2 contains the disk address of the dirent for \texttt{/}. Pick a folder in the dirent (say \texttt{usr}), it has an associated inode number. Read the block containing the inode of \texttt{usr}, it contains a disk address of the dirent for \texttt{usr}. Continue in this fashion until you find your file. 
+			\item This is an expensive operation. To open a file $/1/2/3/\cdots/n$ requires $2n+1$ IO's (two for each directory including \texttt{/} up to $n-1$, and one to get the inode of $n$. To actually read the file requires an additional IO, making $2(n+1)$.
+			\item A \textit{hard link} is when you have multiple names for the same inumber. We maintain a reference count for each file, and a hard link increments this. At a minimum, directories have a reference count of 2. Moving hard links will always work.
+			\item A \textit{soft link} has it's own inode number, but just contains the name of another filein the current directory (no data or dirent). It has a different type. Moving soft links might not always work.
+			\item Almost all systems cache the current working directory. 
+		\end{itemize}
+\end{itemize}
+\textit{I will not include notes on the V6/EXT2 filesystems}.
+\newpage
+
+\section{Virtual Memory}
+\subsection{Processes}
+\begin{itemize}
+	\item Programs that are running are \textit{processes} whose heap, stack, and text live in this proceces's \textit{address space}.
+	\item Process isolation is the illusion that each process has access to all of, and sometimes even more than, the entire physical memory. 
+	\item Processes use \textit{virtual addresses}, which a \textit{memory management unit (MMU)} converts into physical addresses. The MMU is a hardware construct, so must be simple and fast, but the precise mapping it uses is complex (involving allocation, policies about sharing memory, etc.) and controlled by the operating system. 
+	\item Syscalls involving processes:
+		\begin{itemize}
+			\item \texttt{fork}: replicates parent. Returns 0 if in child, child PID if in parent. 
+			\item \texttt{execve} (one of many \texttt{exec*}): Replace current process from file.
+			\item \texttt{wait} and \texttt{waitpid}: stop parent until a child completes, return child exit code. This can be blocking or non-blocking, which allows us to wait via \textit{blocking} or \textit{polling} which have different advantages. 
+		\end{itemize}
+\end{itemize}
+
+\subsection{The Operating System and Control Transfer}
+\begin{itemize}
+	\item We restrict processes from being able to do anything with \textit{privilege levels}. All computers have at least two (user/kernel). Intel has 4 which are called \textit{rings}. 
+	\item Data also has permissions. We do not want data to be executable, or to allow self-modifying programs. 
+	\item Combined, every piece of virtual memory must have metadata related to the privilege level required to access it, and permissions about what to use it for. Given this information, the MMU will either produce data or a \textit{fault}. 
+	\item The current privilege level is maintained by the processor and can be modified by \textit{traps}:
+		\begin{itemize}
+			\item \textit{System calls}: A process asks the operating system to perform some task.
+			\item \textit{Exceptions}: A process requires the operating system to resolve an invalid state.
+			\item \textit{Interrupts}: An asychronous event completes.
+			\item \textit{Timers}: Generated by an inbuilt timer to give the operating system control periodically so no single process can hijack the entire system. 
+		\end{itemize}
+		There are several other examples in real life. Note the differing synchronicity and intentionality of each.
+		\newpage
+	\item Each type of trap is assigned an index in a \textit{trap handler table}, which contains pointers to functions which are executed on each type of trap. 
+	\item The x86 has some more details:
+		\begin{itemize}
+			\item \textit{Interrupt Descriptor Registers} which constitute the trap handler table. The first 32 are for hardware defined traps. 
+			\item \textit{Gates} which allow processes to increase or decrease their current privilege level.
+			\item \textit{PICs} (programmable interrupt controller), or \textit{APICs} (advanced PICs), or most modernly \textit{LAPICs} (local APICs), which are sets of gates that hook up to at most 16 devices and send the correct interrupt to the processor. 
+			\item Syscalls evolved from the \texttt{INT} instruction (synchronous software interrupt with a specified syscall value) which returns via \texttt{IRET}, to modern systems with \texttt{SYSENTER} or \texttt{SYSCALL} and \texttt{SYSEXIT} or \texttt{SYSRET}. 
+		\end{itemize}
+\end{itemize}
+
+\subsection{Virtual Memory Implementation}
+\begin{itemize}
+	\item Memory is divided into \textit{pages}, x86 pages are 4KB. 
+	\item Physical and virtual page size are the same. If a page size is $2^{i}$, virtual addresses are $m$ bits and physical addresses are $n$ bits, the MMU must map the first $m-i$ bits of a virtual address to the first $n-i$ bits of a physical address. The last $i$ bits are identical. 
+	\item Address spaces can be larger or smaller than physical memory. If smaller, many entire processes can be in memory at once. If larger, the sparsity of address spaces allows a process to run without being completely in physical memory.
+	\item x86-64 splits 64 bit addresses into 12 unused bits/36 page number bits/12 bits offset. 
+	\item The MMU caches mappings for speed in a \textit{translation lookaside buffer (TLB)}. This is particularly helpful for instructions and local data. 
+	\item A simple TLB stores a tuple of virtual page number, physical page number, permissions (R/W/X) and user permissions (supervisor/user). The simplest kind of MMU is just a large TLB. 
+	\item A \textit{page table} is a data structure of these mappings indexed by virtual page number for a given address space. The TLB is just a fast cache of page table entries, as page tables can be very large.  
+	\item Either the operating system (below) or the hardware (x86) handles page table lookups when data is not in the TLB. 
+	\item A page table entry is \textit{invalid} (unallocated, accesses give segfaults), \textit{valid and memory resident}, \textit{valid and not memory resident}. Pages might not physically exist in memory, in which case the PTE contains information about how to acquire the data. 
+\end{itemize}
+
+\newpage 
+\subsection{Software TLB Fault Handling}
+\begin{itemize}
+	\item If a user process generates an address not in the TLB, the MMU generates a trap for a TLB fault. Some processors (x86) can handle TLB faults in hardware.
+	\item The operating system will look the page in the page table:
+		\begin{itemize}
+			\item If invalid, kill the process. 
+			\item If valid and memory resident, enter information into the TLB. 
+			\item If valid and not memory resident, follow instructions in PTE to find the memory. This might be a device number and address, or an instruction to zero-fill a page (eg. \texttt{calloc}). Find a free page, place in contents, and restart instruction. It will now fault into case two and enter information into the TLB.
+		\end{itemize}
+\end{itemize}
+
+\subsection{The x86 Virtual Memory System}
+\begin{itemize}
+	\item As per above, x86 addresses are split: 12 unused/36 page number/12 bits offset and have 4KB pages.
+
+	\item There is a maximum of $2^{36}$ pages, which is too large for a flat page table. 
+	\item To solve this, the x86 uses a multi-level index:
+		\begin{itemize}
+			\item The processor maintains a register \texttt{cr3} pointing to a physical page in memory.
+			\item There are three indirect blocks (pages of PTE's) called the L1 through L3 page tables. 
+			\item Each L3 page table entry points to a L4 page table, which contain page table entries for actual virtual addresses. 
+			\item Page table entries are 8 bytes; each page table has $2^{9}$ page table entries. The 32 bits of virtual page number are split into L1 through L4 index. 
+			\item Level 1,2, and 3 page table entries are arranged as follows:
+				\begin{center}
+					\begin{tabular}{c||c|c}
+						Bit(s) & Name & Meaning \\ 
+						\hline
+						63 & XD & Execute disable \\
+						12-51 & - & Page table physical address \\
+						7 & PS & Page size \\
+						5 & A & Reference bit (see clock replacement) \\
+						4 & CD & Allowed to cache \\
+						3 & WT & Writethrough or Writeback policy \\
+						2 & US & User or supervisor access \\
+						1 & RW & Read only or Read/Write \\
+						0 & P & Page present in memory
+					\end{tabular} 
+				\end{center}
+			\newpage
+		\item Level 4 page table entries have the following additional information
+				\begin{center}
+					\begin{tabular}{c||c|c}
+						Bit(s) & Name & Meaning \\ 
+						\hline
+						8 & G & Global page (stays in TLB on process switch) \\
+						6 & D & Dirty bit, set on write.
+					\end{tabular} 
+				\end{center}
+	\end{itemize}
+\end{itemize}
+
+\subsection{Page Replacement}
+\begin{itemize}
+	\item Memory is a cache for virtual memory pages, that might live on disk (swapfiles make everything live on disk). 
+	\item The operating system does not know the memory access pattern making many above eviction policies impossible. 
+	\item The solution is the \textit{clock algorithm}. Pages track the use and dirty bits, the hardware maintains an index which iterates over all physical pages. When a new page needs to be allocated, iterate over memory clearing use bits and writing dirty data. Evict the first page with use bit 0.
+	\item The clock algorithm approximates LRU. 
+	\item The \textit{two handed clock algorithm} improves this by preemptively writing dirty data some fixed offset ahead of the clock index. 
+	\item Additionally, the operating system may make more complicated policies for large processes or to ensure fair sharing of memory. 
+\end{itemize}
+\end{document}
